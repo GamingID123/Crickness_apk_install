@@ -100,10 +100,10 @@ fun SettingsScreen(
 
                     Text("Default Overs: ${settings.defaultOvers}", color = Color.White)
                     Slider(
-                        value = settings.defaultOvers.toFloat(),
+                        value = settings.defaultOvers.toFloat().coerceIn(1f, 90f),
                         onValueChange = { onUpdateDefaultOvers(it.toInt()) },
-                        valueRange = 1f..50f,
-                        steps = 49,
+                        valueRange = 1f..90f,
+                        steps = 88,
                         colors = SliderDefaults.colors(thumbColor = NeonGreen, activeTrackColor = NeonGreen)
                     )
 
@@ -111,9 +111,9 @@ fun SettingsScreen(
 
                     Text("Default Wickets: ${settings.defaultWickets}", color = Color.White)
                     Slider(
-                        value = settings.defaultWickets.toFloat(),
+                        value = settings.defaultWickets.toFloat().coerceIn(1f, 11f),
                         onValueChange = { onUpdateDefaultWickets(it.toInt()) },
-                        valueRange = 1f..10f,
+                        valueRange = 1f..11f,
                         steps = 9,
                         colors = SliderDefaults.colors(thumbColor = NeonGreen, activeTrackColor = NeonGreen)
                     )

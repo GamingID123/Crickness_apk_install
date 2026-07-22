@@ -119,6 +119,8 @@ fun AppNavigation(
                 onRedo = { viewModel.redoLastBall() },
                 onSwapBatsmen = { viewModel.swapBatsmen() },
                 onSetBowler = { viewModel.setBowler(it) },
+                onSetStriker = { viewModel.setStriker(it) },
+                onSetNonStriker = { viewModel.setNonStriker(it) },
                 onStartSecondInnings = { striker, nonStriker, bowler ->
                     viewModel.startSecondInnings(striker, nonStriker, bowler)
                 },

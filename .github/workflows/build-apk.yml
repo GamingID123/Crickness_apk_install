@@ -25,8 +25,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Create dummy google-services.json if missing
+        run: |
+          if [ ! -f "app/google-services.json" ]; then
+            echo '{"project_info":{"project_number":"123456789012","project_id":"dummy-project","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789012:android:0000000000000000","android_client_info":{"package_name":"com.aistudio.crickness.gullyar"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyDummyKey"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}]}' > app/google-services.json
+          fi
+
       - name: Build Debug APK
-        run: gradle assembleDebug --stacktrace
+        env:
+          JAVA_OPTS: "-Djava.awt.headless=true"
+        run: gradle assembleDebug -Djava.awt.headless=true -Dksp.incremental=false --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

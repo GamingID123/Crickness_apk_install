@@ -14,10 +14,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.ChangeCircle
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.Scoreboard
+import androidx.compose.material.icons.filled.SportsCricket
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.*
@@ -37,6 +39,8 @@ import com.example.ui.components.*
 import com.example.ui.theme.DarkGlass
 import com.example.ui.theme.NeonGreen
 
+enum class PlayerEditRole { STRIKER, NON_STRIKER, BOWLER }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LiveMatchScreen(
@@ -46,6 +50,8 @@ fun LiveMatchScreen(
     onRedo: () -> Unit,
     onSwapBatsmen: () -> Unit,
     onSetBowler: (String) -> Unit,
+    onSetStriker: (String) -> Unit,
+    onSetNonStriker: (String) -> Unit,
     onStartSecondInnings: (striker: String, nonStriker: String, bowler: String) -> Unit,
     onNavigateCameraAr: () -> Unit,
     onNavigateScoreboard: () -> Unit,
@@ -53,12 +59,17 @@ fun LiveMatchScreen(
     onNavigateBack: () -> Unit
 ) {
     var showWicketDialog by remember { mutableStateOf(false) }
-    var showBowlerDialog by remember { mutableStateOf(false) }
+    var showEditPlayerDialog by remember { mutableStateOf<PlayerEditRole?>(null) }
     var showWagonWheel by remember { mutableStateOf(false) }
     var selectedWagonDegree by remember { mutableStateOf<Float?>(null) }
 
+    // Wicket Dialog state
     var selectedWicketType by remember { mutableStateOf(WicketType.BOWLED) }
-    var newBowlerName by remember { mutableStateOf("") }
+    var dismissedWho by remember { mutableStateOf("STRIKER") } // "STRIKER" or "NON_STRIKER"
+    var newBatsmanNameInput by remember { mutableStateOf("") }
+
+    // Edit Player state
+    var editPlayerText by remember { mutableStateOf("") }
 
     // Auto navigate to save when match completed
     LaunchedEffect(matchState.inningsStatus) {
@@ -180,47 +191,100 @@ fun LiveMatchScreen(
                     }
                 }
 
-                // Current Batsmen & Bowler Stats Card
+                // Who is Batting & Bowling Card (With Edit Player Name Options)
                 GlassCard {
-                    // Striker & Non-Striker
-                    Text("BATTING", color = NeonGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("WHO IS BATTING", color = NeonGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        TextButton(
+                            onClick = { onSwapBatsmen() },
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Icon(Icons.Default.SwapHoriz, contentDescription = "Swap Strike", tint = NeonGreen, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Swap Strike", color = NeonGreen, fontSize = 12.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     val strikerStats = matchState.playerStatsMap[matchState.strikerName]
                     val nonStrikerStats = matchState.playerStatsMap[matchState.nonStrikerName]
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "* ${matchState.strikerName}",
-                            color = NeonGreen,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                        Text(
-                            text = "${strikerStats?.runs ?: 0} (${strikerStats?.ballsFaced ?: 0}b) • 4s: ${strikerStats?.fours ?: 0} 6s: ${strikerStats?.sixes ?: 0}",
-                            color = Color.White,
-                            fontSize = 14.sp
-                        )
-                    }
-
+                    // Striker Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(NeonGreen.copy(alpha = 0.12f))
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Text("🏏 * ", color = NeonGreen, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = matchState.strikerName.ifBlank { "Striker" },
+                                color = NeonGreen,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                            IconButton(
+                                onClick = {
+                                    editPlayerText = matchState.strikerName
+                                    showEditPlayerDialog = PlayerEditRole.STRIKER
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit Striker Name", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                            }
+                        }
+
                         Text(
-                            text = "  ${matchState.nonStrikerName}",
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 14.sp
+                            text = "${strikerStats?.runs ?: 0} (${strikerStats?.ballsFaced ?: 0}b) • 4s: ${strikerStats?.fours ?: 0} 6s: ${strikerStats?.sixes ?: 0}",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Non-Striker Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Text("🏃  ", color = Color.White)
+                            Text(
+                                text = matchState.nonStrikerName.ifBlank { "Non-Striker" },
+                                color = Color.White.copy(alpha = 0.9f),
+                                fontSize = 14.sp
+                            )
+                            IconButton(
+                                onClick = {
+                                    editPlayerText = matchState.nonStrikerName
+                                    showEditPlayerDialog = PlayerEditRole.NON_STRIKER
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit Non-Striker Name", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                            }
+                        }
+
                         Text(
                             text = "${nonStrikerStats?.runs ?: 0} (${nonStrikerStats?.ballsFaced ?: 0}b) • 4s: ${nonStrikerStats?.fours ?: 0} 6s: ${nonStrikerStats?.sixes ?: 0}",
                             color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 14.sp
+                            fontSize = 13.sp
                         )
                     }
 
@@ -229,7 +293,7 @@ fun LiveMatchScreen(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
 
-                    // Bowler Stats
+                    // Bowler Row
                     val bowlerStats = matchState.playerStatsMap[matchState.bowlerName]
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -238,12 +302,23 @@ fun LiveMatchScreen(
                     ) {
                         Column {
                             Text("BOWLING", color = NeonGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text(
-                                text = matchState.bowlerName,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = matchState.bowlerName.ifBlank { "Bowler" },
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                                IconButton(
+                                    onClick = {
+                                        editPlayerText = matchState.bowlerName
+                                        showEditPlayerDialog = PlayerEditRole.BOWLER
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit Bowler Name", tint = NeonGreen, modifier = Modifier.size(16.dp))
+                                }
+                            }
                         }
                         Text(
                             text = "${bowlerStats?.wicketsTaken ?: 0}-${bowlerStats?.runsConceded ?: 0} (${bowlerStats?.oversBowled ?: 0.0}ov)",
@@ -380,53 +455,184 @@ fun LiveMatchScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Wicket Button
+                    // Wicket / OUT Button
                     Button(
-                        onClick = { showWicketDialog = true },
+                        onClick = {
+                            newBatsmanNameInput = ""
+                            showWicketDialog = true
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF1744), contentColor = Color.White),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .height(50.dp)
                     ) {
-                        Text("OUT / WICKET", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("OUT / WICKET 🚨", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 }
             }
         }
     }
 
-    // Wicket Type Selection Dialog
+    // Wicket / Dismissal Dialog with Incoming Batsman
     if (showWicketDialog) {
         AlertDialog(
             onDismissRequest = { showWicketDialog = false },
-            title = { Text("SELECT DISMISSAL TYPE", color = NeonGreen, fontWeight = FontWeight.Bold) },
+            title = { Text("RECORD OUT / WICKET", color = Color(0xFFFF1744), fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("1. WHO IS OUT?", color = NeonGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = dismissedWho == "STRIKER",
+                            onClick = { dismissedWho = "STRIKER" },
+                            label = { Text("Striker: ${matchState.strikerName}") },
+                            modifier = Modifier.weight(1f),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFFF1744),
+                                selectedLabelColor = Color.White
+                            )
+                        )
+                        FilterChip(
+                            selected = dismissedWho == "NON_STRIKER",
+                            onClick = { dismissedWho = "NON_STRIKER" },
+                            label = { Text("Non-Striker: ${matchState.nonStrikerName}") },
+                            modifier = Modifier.weight(1f),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFFF1744),
+                                selectedLabelColor = Color.White
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("2. DISMISSAL METHOD", color = NeonGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+
                     listOf(
-                        WicketType.BOWLED,
-                        WicketType.CAUGHT,
-                        WicketType.RUN_OUT,
-                        WicketType.LBW,
-                        WicketType.STUMPED,
-                        WicketType.HIT_WICKET
-                    ).forEach { wType ->
-                        Button(
-                            onClick = {
-                                showWicketDialog = false
-                                onRecordBall(0, ExtraType.NONE, 0, wType, matchState.strikerName, selectedWagonDegree)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(wType.name, color = Color.White)
+                        listOf(WicketType.BOWLED, WicketType.CAUGHT),
+                        listOf(WicketType.RUN_OUT, WicketType.LBW),
+                        listOf(WicketType.STUMPED, WicketType.HIT_WICKET)
+                    ).forEach { pair ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            pair.forEach { wType ->
+                                FilterChip(
+                                    selected = selectedWicketType == wType,
+                                    onClick = { selectedWicketType = wType },
+                                    label = { Text(wType.name) },
+                                    modifier = Modifier.weight(1f),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = NeonGreen,
+                                        selectedLabelColor = Color.Black
+                                    )
+                                )
+                            }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("3. NEW INCOMING BATSMAN NAME", color = NeonGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+
+                    OutlinedTextField(
+                        value = newBatsmanNameInput,
+                        onValueChange = { newBatsmanNameInput = it },
+                        placeholder = { Text("Enter new batsman name", color = Color.Gray) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonGreen,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
                 }
             },
-            confirmButton = {},
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val dismissedPlayerName = if (dismissedWho == "STRIKER") matchState.strikerName else matchState.nonStrikerName
+                        val incomingBatsman = newBatsmanNameInput.ifBlank { "New Batsman ${matchState.currentWickets + 2}" }
+
+                        // Record ball
+                        onRecordBall(0, ExtraType.NONE, 0, selectedWicketType, dismissedPlayerName, selectedWagonDegree)
+
+                        // Set incoming batsman
+                        if (dismissedWho == "STRIKER") {
+                            onSetStriker(incomingBatsman)
+                        } else {
+                            onSetNonStriker(incomingBatsman)
+                        }
+
+                        showWicketDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF1744), contentColor = Color.White)
+                ) {
+                    Text("CONFIRM OUT", fontWeight = FontWeight.Bold)
+                }
+            },
             dismissButton = {
                 TextButton(onClick = { showWicketDialog = false }) { Text("CANCEL", color = Color.White) }
+            },
+            containerColor = DarkGlass
+        )
+    }
+
+    // Edit Active Player Dialog (Striker, Non-Striker, Bowler)
+    showEditPlayerDialog?.let { role ->
+        AlertDialog(
+            onDismissRequest = { showEditPlayerDialog = null },
+            title = {
+                Text(
+                    text = when (role) {
+                        PlayerEditRole.STRIKER -> "EDIT STRIKER NAME"
+                        PlayerEditRole.NON_STRIKER -> "EDIT NON-STRIKER NAME"
+                        PlayerEditRole.BOWLER -> "EDIT BOWLER NAME"
+                    },
+                    color = NeonGreen,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Enter name:", color = Color.White)
+                    OutlinedTextField(
+                        value = editPlayerText,
+                        onValueChange = { editPlayerText = it },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonGreen,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val finalName = editPlayerText.ifBlank { "Player" }
+                        when (role) {
+                            PlayerEditRole.STRIKER -> onSetStriker(finalName)
+                            PlayerEditRole.NON_STRIKER -> onSetNonStriker(finalName)
+                            PlayerEditRole.BOWLER -> onSetBowler(finalName)
+                        }
+                        showEditPlayerDialog = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = Color.Black)
+                ) {
+                    Text("SAVE NAME")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditPlayerDialog = null }) { Text("CANCEL", color = Color.White) }
             },
             containerColor = DarkGlass
         )
@@ -446,13 +652,7 @@ fun LiveMatchScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val teamBPlayers = matchState.playerStatsMap.keys.filter { it !in matchState.teamAPlayers }.ifEmpty { listOf("Player B1", "Player B2", "Player B3") }
-                        val teamAPlayers = matchState.teamAPlayers
-                        onStartSecondInnings(
-                            teamBPlayers.getOrElse(0) { "Striker B" },
-                            teamBPlayers.getOrElse(1) { "NonStriker B" },
-                            teamAPlayers.getOrElse(0) { "Bowler A" }
-                        )
+                        onStartSecondInnings("Opening Striker", "Opening Non-Striker", "Opening Bowler")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = Color.Black)
                 ) {
