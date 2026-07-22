@@ -1,0 +1,6 @@
+{
+  "name": "Crickness",
+  "description": "Gully AR Umpire Pro - Modern gully cricket match scoring, camera & AR pitch umpire tools, statistics, and match tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
